@@ -4,7 +4,7 @@ Interactive branching video where the audience chooses the story.
 
 ## Quick Overview
 
-Follow three students—Flying Tiger, Max, and Sir Doggegg—as they head into Competition Day. Viewers vote at key moments; each choice branches the video and changes relationships, challenges, and endings.
+Follow three students — Flying Tiger, Max, and Sir Doggegg—as they head into Competition Day. Viewers vote at key moments; each choice branches the video and changes relationships, challenges, and endings.
 
 ## How It Works (short)
 
