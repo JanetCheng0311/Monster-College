@@ -21,3 +21,4 @@ venv/
 .env
 dist/
 build/
+project_management_excel.txt
