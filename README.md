@@ -15,13 +15,29 @@ Follow three students — Flying Tiger, Max, and Sir Doggegg—as they head into
 
 A fullscreen, side-scrolling shooter mini game.
 
-- File: `Max_mini_game/Max Mini Game.py`
-- Assets folder: `Max_mini_game/Max_assets/`
+### What you need in the folder
 
-### Requirements
+- Game script: `Max_mini_game/Max Mini Game.py`
+- Assets folder: `Max_mini_game/Max_assets/` with these PNGs:
+  - `Max_minigame_bg.png`
+  - `Max_game_ready_pose.png`
+  - `Max_game_ready_shotpose.png`
+  - `Laser_shot.png`
+  - `wood.png`, `star_wood.png`, `moon_wood.png`, `around_wood.png`
 
-- Python 3
-- Pygame (`pip install pygame`)
+If any file is missing, the game will stop and tell you which image is missing.
+
+### Install (one time)
+
+```powershell
+python -m pip install pygame
+```
+
+If you use this repo’s venv, you can also do:
+
+```powershell
+& .venv/Scripts/python.exe -m pip install pygame
+```
 
 ### Run
 
@@ -31,7 +47,7 @@ From the repository root (Windows PowerShell):
 & .venv/Scripts/python.exe "Max_mini_game/Max Mini Game.py"
 ```
 
-If you are not using the provided venv:
+Or with your system Python:
 
 ```powershell
 python "Max_mini_game/Max Mini Game.py"
@@ -41,17 +57,20 @@ python "Max_mini_game/Max Mini Game.py"
 
 - `W` / `S`: move up / down
 - `A` / `D`: move left / right
-- `Space`: shoot (laser)
+- `Space`: shoot
 - `Esc`: quit
 
-### Goal / Rules
+### Scoring (easy rules)
 
-- Round length: 60 seconds
-- Win condition: $\text{Marks} \ge 30$
-- Shooting: first time a laser hits a wood, it transforms into a random variant and you gain **+2 marks**
-- Penalties:
-  - If **unhit** `wood.png` touches Max: **-1 mark**
-  - If **unhit** `wood.png` exits the screen on the left: **-1 mark**
+- You play for **60 seconds**.
+- You win if your marks are **30 or more** ($\text{Marks} \ge 30$).
+- Laser hits:
+  - When your laser hits an **unhit** wood for the first time: **+1 mark** and it transforms.
+- Touching wood with Max:
+  - Touch a **hit / transformed** wood: **+1 mark** (collect it).
+  - Touch an **unhit** `wood.png`: **-1 mark**.
+- Missed wood:
+  - If an **unhit** `wood.png` flies off the **left edge**: **-1 mark**.
 
 ## Contribute
 

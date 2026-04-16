@@ -271,7 +271,7 @@ def main() -> None:
                 if laser_rect.colliderect(wood_rect):
                     hit_any = True
                     if not bool(w["hit"]):
-                        marks += 2
+                        marks += 1
                         cx, cy = wood_rect.center
                         new_kind = random.choice(WOOD_VARIANT_KEYS)
                         new_img = WOOD_VARIANTS[new_kind]
@@ -293,7 +293,8 @@ def main() -> None:
             player_img.get_height(),
         )
 
-        # If wood.png (unhit wood) hits Max, lose 1 mark. Any wood that hits Max is removed.
+        # If unhit wood.png touches Max: -1 mark. If a transformed (hit) wood touches Max: +1 mark.
+        # Any wood that touches Max is removed.
         kept_woods_after_hit: list[dict[str, object]] = []
         for w in woods:
             wood_img = w["img"]
@@ -301,7 +302,9 @@ def main() -> None:
             wy = int(float(w["y"]))
             wood_rect = pygame.Rect(wx, wy, wood_img.get_width(), wood_img.get_height())
             if player_rect.colliderect(wood_rect):
-                if not bool(w["hit"]):
+                if bool(w["hit"]):
+                    marks += 1
+                else:
                     marks -= 1
                 continue
             kept_woods_after_hit.append(w)
