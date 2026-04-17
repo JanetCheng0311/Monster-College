@@ -1,5 +1,9 @@
 import os
 import pygame
+import subprocess
+import sys
+import numpy as np
+from moviepy.video.io.VideoFileClip import VideoFileClip
 
 
 # Initialize Pygame
@@ -27,6 +31,11 @@ _bg = pygame.transform.smoothscale(_bg_raw, (int(_bg_w * scale), int(_bg_h * sca
 # Load menu assets
 LOGO_PATH = os.path.join(ASSET_DIR, "logo.png")
 START_BTN_PATH = os.path.join(ASSET_DIR, "start_button.png")
+
+VIDEO_PATH = os.path.join(ASSET_DIR, "skytoschool.mp4")
+
+if not os.path.exists(VIDEO_PATH):
+    raise FileNotFoundError(f"Missing video file: {VIDEO_PATH}. Put skytoschool.mp4 in the meun&map folder.")
 
 for _p in (LOGO_PATH, START_BTN_PATH):
     if not os.path.exists(_p):
@@ -87,7 +96,8 @@ def main() -> None:
                 if event.key == pygame.K_ESCAPE:
                     running = False
                 elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
-                    print("Start game requested")
+                    # Play video when Enter pressed
+                    play_video()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # record which button was pressed
                 if start_rect.collidepoint(event.pos):
@@ -97,7 +107,8 @@ def main() -> None:
             elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
                 # trigger click if press started and ended on same button
                 if pressed_button == "start" and start_rect.collidepoint(event.pos):
-                    print("Start button clicked")
+                    # Play the video when Start is clicked
+                    play_video()
                 pressed_button = None
 
         # Draw background centered
@@ -138,6 +149,69 @@ def main() -> None:
         pygame.display.flip()
 
     pygame.quit()
+
+
+def play_video_in_pygame(path: str) -> None:
+    """Play the given video file inside the existing Pygame `screen`.
+
+    This uses MoviePy to decode frames and blits them into the Pygame surface.
+    Audio is ignored to keep implementation simple and reliable across platforms.
+    """
+    clip = VideoFileClip(path)
+    fps = clip.fps if clip.fps and clip.fps > 0 else 30
+    clock = pygame.time.Clock()
+
+    try:
+        for frame in clip.iter_frames(fps=fps, dtype="uint8"):
+            # handle quit / escape events while playing
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    clip.close()
+                    return
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    clip.close()
+                    return
+
+            # frame is HxWx3 RGB
+            h, w = frame.shape[0], frame.shape[1]
+            # create a surface from the frame bytes
+            surf = pygame.image.frombuffer(frame.tobytes(), (w, h), "RGB")
+            # scale to fullscreen while preserving aspect
+            surf = pygame.transform.smoothscale(surf, (SCREEN_WIDTH, SCREEN_HEIGHT))
+            screen.blit(surf, (0, 0))
+            pygame.display.flip()
+            clock.tick(fps)
+    finally:
+        try:
+            clip.close()
+        except Exception:
+            pass
+
+
+def play_video() -> None:
+    """Try in-window playback first, then fallback to system opener if it fails."""
+    try:
+        print(f"Attempting in-window playback: {VIDEO_PATH}")
+        sys.stdout.flush()
+        play_video_in_pygame(VIDEO_PATH)
+        return
+    except Exception as e:
+        print("In-window playback failed:", e)
+
+    # Fallback: open with system default player
+    try:
+        print(f"Falling back to system player for: {VIDEO_PATH}")
+        sys.stdout.flush()
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", VIDEO_PATH])
+        elif sys.platform.startswith("win"):
+            os.startfile(VIDEO_PATH)
+        else:
+            subprocess.Popen(["xdg-open", VIDEO_PATH])
+        return
+    except Exception as e:
+        print("Fallback open failed:", e)
+    print("Unable to open video. Check the file and system defaults.")
 
 
 if __name__ == "__main__":
