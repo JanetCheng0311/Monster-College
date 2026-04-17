@@ -35,6 +35,9 @@ SPRITE_SCALE = 0.75
 PLAYER_IDLE_PATH = os.path.join(ASSET_DIR, "Max_game_ready_pose.png")
 PLAYER_SHOOT_PATH = os.path.join(ASSET_DIR, "Max_game_ready_shotpose.png")
 LASER_PATH = os.path.join(ASSET_DIR, "Laser_shot.png")
+LASER_SOUND_PATH = os.path.join(ASSET_DIR, "laser_gun.wav")
+COLLECT_SOUND_PATH = os.path.join(ASSET_DIR, "Collect_wood.wav")
+GOT_HIT_SOUND_PATH = os.path.join(ASSET_DIR, "Got_hit.wav")
 REPLAY_BUTTON_PATH = os.path.join(ASSET_DIR, "replay_button.png")
 HOME_BUTTON_PATH = os.path.join(ASSET_DIR, "home_button.png")
 WHITEBOARD_PATH = os.path.join(ASSET_DIR, "Whiteboard.png")
@@ -110,6 +113,34 @@ SHOOT_POSE_SEC = 0.15
 
 LASER_SPAWN_REL_X = 0.78
 LASER_SPAWN_REL_Y = 0.40
+
+# Initialize mixer (if not already) and load laser sound (optional).
+try:
+    if pygame.mixer.get_init() is None:
+        pygame.mixer.init()
+except Exception:
+    # If the mixer cannot initialize, continue without sound.
+    pass
+
+_laser_sound = None
+if os.path.exists(LASER_SOUND_PATH):
+    try:
+        _laser_sound = pygame.mixer.Sound(LASER_SOUND_PATH)
+    except Exception:
+        _laser_sound = None
+_collect_sound = None
+if os.path.exists(COLLECT_SOUND_PATH):
+    try:
+        _collect_sound = pygame.mixer.Sound(COLLECT_SOUND_PATH)
+    except Exception:
+        _collect_sound = None
+
+_got_hit_sound = None
+if os.path.exists(GOT_HIT_SOUND_PATH):
+    try:
+        _got_hit_sound = pygame.mixer.Sound(GOT_HIT_SOUND_PATH)
+    except Exception:
+        _got_hit_sound = None
 
 WOOD_PATH = os.path.join(ASSET_DIR, "wood.png")
 WOOD_STAR_PATH = os.path.join(ASSET_DIR, "star_wood.png")
@@ -425,6 +456,12 @@ def main() -> None:
                         projectiles.append([float(spawn_x), float(spawn_y)])
                         laser_cooldown_t = LASER_COOLDOWN_SEC
                         shoot_pose_t = SHOOT_POSE_SEC
+                        # Play laser sound if available
+                        try:
+                            if _laser_sound is not None:
+                                _laser_sound.play()
+                        except Exception:
+                            pass
 
             if not running:
                 break
@@ -545,6 +582,21 @@ def main() -> None:
                     wx, wy, wood_img.get_width(), wood_img.get_height()
                 )
                 if player_rect.colliderect(wood_rect):
+                    # Only play collect sound for special wood variants
+                    variant = str(w.get("variant", "base"))
+                    if variant in ("star", "moon", "around"):
+                        try:
+                            if _collect_sound is not None:
+                                _collect_sound.play()
+                        except Exception:
+                            pass
+                    elif (not bool(w["hit"])) and variant == "base":
+                        # Got hit by the base wood.png
+                        try:
+                            if _got_hit_sound is not None:
+                                _got_hit_sound.play()
+                        except Exception:
+                            pass
                     if bool(w["hit"]):
                         marks += 1
                     else:
