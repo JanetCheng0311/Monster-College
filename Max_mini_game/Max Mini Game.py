@@ -37,6 +37,9 @@ PLAYER_SHOOT_PATH = os.path.join(ASSET_DIR, "Max_game_ready_shotpose.png")
 LASER_PATH = os.path.join(ASSET_DIR, "Laser_shot.png")
 REPLAY_BUTTON_PATH = os.path.join(ASSET_DIR, "replay_button.png")
 HOME_BUTTON_PATH = os.path.join(ASSET_DIR, "home_button.png")
+WHITEBOARD_PATH = os.path.join(ASSET_DIR, "Whiteboard.png")
+START_BUTTON_PATH = os.path.join(ASSET_DIR, "start_button.png")
+MAX_FULL_PATH = os.path.join(ASSET_DIR, "Max_full.png")
 
 if not os.path.exists(PLAYER_IDLE_PATH):
     raise FileNotFoundError(
@@ -57,6 +60,18 @@ if not os.path.exists(REPLAY_BUTTON_PATH):
 if not os.path.exists(HOME_BUTTON_PATH):
     raise FileNotFoundError(
         f"Missing home button image: {HOME_BUTTON_PATH}. Put home_button.png in the Max_assets folder."
+    )
+if not os.path.exists(WHITEBOARD_PATH):
+    raise FileNotFoundError(
+        f"Missing menu image: {WHITEBOARD_PATH}. Put Whiteboard.png in the Max_assets folder."
+    )
+if not os.path.exists(START_BUTTON_PATH):
+    raise FileNotFoundError(
+        f"Missing menu image: {START_BUTTON_PATH}. Put start_button.png in the Max_assets folder."
+    )
+if not os.path.exists(MAX_FULL_PATH):
+    raise FileNotFoundError(
+        f"Missing menu image: {MAX_FULL_PATH}. Put Max_full.png in the Max_assets folder."
     )
 
 _player_idle_raw = pygame.image.load(PLAYER_IDLE_PATH).convert_alpha()
@@ -160,12 +175,54 @@ def _scale_to_height(img: pygame.Surface, target_h: int) -> pygame.Surface:
     return pygame.transform.smoothscale(img, (max(1, int(w * scale)), target_h))
 
 
+def _scale_to_fit(img: pygame.Surface, max_w: int, max_h: int) -> pygame.Surface:
+    max_w = max(1, int(max_w))
+    max_h = max(1, int(max_h))
+    w, h = img.get_size()
+    if w <= 0 or h <= 0:
+        return img
+    scale = min(max_w / w, max_h / h)
+    return pygame.transform.smoothscale(img, (max(1, int(w * scale)), max(1, int(h * scale))))
+
+
+def _wrap_text_lines(text: str, font: pygame.font.Font, max_width_px: int) -> list[str]:
+    words = text.split()
+    if not words:
+        return [""]
+
+    lines: list[str] = []
+    current = words[0]
+
+    for w in words[1:]:
+        test = f"{current} {w}"
+        if font.size(test)[0] <= max_width_px:
+            current = test
+        else:
+            lines.append(current)
+            current = w
+    lines.append(current)
+    return lines
+
+
 _replay_btn_raw = pygame.image.load(REPLAY_BUTTON_PATH).convert_alpha()
 REPLAY_BTN_TARGET_H = int(SCREEN_HEIGHT * 0.15 * SPRITE_SCALE)
 _replay_btn_img = _scale_to_height(_replay_btn_raw, REPLAY_BTN_TARGET_H)
 
 _home_btn_raw = pygame.image.load(HOME_BUTTON_PATH).convert_alpha()
 _home_btn_img = _scale_to_height(_home_btn_raw, REPLAY_BTN_TARGET_H)
+
+_whiteboard_raw = pygame.image.load(WHITEBOARD_PATH).convert_alpha()
+_start_btn_raw = pygame.image.load(START_BUTTON_PATH).convert_alpha()
+_max_full_raw = pygame.image.load(MAX_FULL_PATH).convert_alpha()
+
+_whiteboard_img = _scale_to_fit(
+    _whiteboard_raw,
+    int(SCREEN_WIDTH * 1.0),
+    int(SCREEN_HEIGHT * 0.9),
+)
+
+_max_full_img = _scale_to_height(_max_full_raw, int(_whiteboard_img.get_height() * 0.55))
+_start_btn_img = _scale_to_height(_start_btn_raw, int(_max_full_img.get_height() * 0.30))
 
 
 def draw_scrolling_background(x_offset_px: float) -> None:
@@ -175,10 +232,157 @@ def draw_scrolling_background(x_offset_px: float) -> None:
         x += BG_WIDTH
 
 
+def show_menu(clock: pygame.time.Clock) -> bool:
+    pygame.mouse.set_visible(True)
+
+    whiteboard_rect = _whiteboard_img.get_rect()
+    max_full_rect = _max_full_img.get_rect()
+    start_btn_rect = _start_btn_img.get_rect()
+
+    gap = max(12, int(SCREEN_HEIGHT * 0.02))
+
+    center_x = (SCREEN_WIDTH // 2) - int(SCREEN_WIDTH * 0.12)
+    center_y = (SCREEN_HEIGHT // 2) + int(SCREEN_HEIGHT * 0.01)
+    whiteboard_rect.center = (center_x, center_y)
+
+    if whiteboard_rect.top < 10:
+        whiteboard_rect.top = 10
+    if whiteboard_rect.bottom > SCREEN_HEIGHT - 10:
+        whiteboard_rect.bottom = SCREEN_HEIGHT - 10
+
+    # Place Max_full.png next to the whiteboard.
+    side_gap = max(12, int(SCREEN_WIDTH * 0.02))
+    max_full_up = max(6, int(SCREEN_HEIGHT * 0.05))
+    max_full_rect.midleft = (
+        whiteboard_rect.right + side_gap,
+        whiteboard_rect.centery - max_full_up,
+    )
+
+    if max_full_rect.top < 10:
+        max_full_rect.top = 10
+    if max_full_rect.bottom > SCREEN_HEIGHT - 10:
+        max_full_rect.bottom = SCREEN_HEIGHT - 10
+
+    # Place start button below Max_full.png.
+    start_gap = max(10, int(SCREEN_HEIGHT * 0.015))
+    start_btn_rect.midtop = (max_full_rect.centerx, max_full_rect.bottom + start_gap)
+
+    if start_btn_rect.left < 10:
+        start_btn_rect.left = 10
+    if start_btn_rect.right > SCREEN_WIDTH - 10:
+        start_btn_rect.right = SCREEN_WIDTH - 10
+    if start_btn_rect.bottom > SCREEN_HEIGHT - 10:
+        start_btn_rect.bottom = SCREEN_HEIGHT - 10
+
+    # Prepare instruction text to draw on the whiteboard.
+    content_pad_x = max(14, int(whiteboard_rect.width * 0.08))
+    content_pad_y = max(14, int(whiteboard_rect.height * 0.10))
+    content_rect = pygame.Rect(
+        whiteboard_rect.left + content_pad_x,
+        whiteboard_rect.top + content_pad_y,
+        max(1, whiteboard_rect.width - (2 * content_pad_x)),
+        max(1, whiteboard_rect.height - (2 * content_pad_y)),
+    )
+
+    # Nudge instructions slightly down + right.
+    instruction_offset_x = int(whiteboard_rect.width * 0.04)
+    instruction_offset_y = int(whiteboard_rect.height * 0.05)
+    content_rect.x += instruction_offset_x
+    content_rect.y += instruction_offset_y
+
+    content_rect.clamp_ip(
+        pygame.Rect(
+            whiteboard_rect.left + 6,
+            whiteboard_rect.top + 6,
+            max(1, whiteboard_rect.width - 12),
+            max(1, whiteboard_rect.height - 12),
+        )
+    )
+
+    instruction_title = "Mini Game Instructions"
+    instruction_blocks = [
+        "Move: WASD or Arrow Keys",
+        "Shoot: SPACE",
+        f"Time Limit: {int(ROUND_DURATION_SEC)} seconds",
+        f"Win: Reach {WIN_MARKS_GT}+ marks",
+        "Tip: Hitting wood once changes it (and gives +1)",
+        "Touching hit wood gives +1; unhit wood gives -1",
+        "Click START to begin  |  ESC to quit",
+    ]
+
+    # Auto-size fonts to fit the available whiteboard space.
+    body_size = max(16, int(whiteboard_rect.height * 0.052))
+    title_scale = 1.35
+    line_gap = max(2, int(whiteboard_rect.height * 0.008))
+    title_gap = max(6, int(whiteboard_rect.height * 0.02))
+
+    while True:
+        title_size = max(18, int(body_size * title_scale))
+        title_font = pygame.font.SysFont(None, title_size)
+        body_font = pygame.font.SysFont(None, body_size)
+
+        wrapped_lines: list[tuple[pygame.Surface, pygame.Rect]] = []
+
+        title_surf = title_font.render(instruction_title, True, (10, 10, 10))
+        title_rect = title_surf.get_rect()
+        title_rect.midtop = (content_rect.centerx, content_rect.top)
+
+        body_extra_down = max(0, int(whiteboard_rect.height * 0.10))
+        body_extra_right = max(0, int(whiteboard_rect.width * 0.03))
+        body_max_width = max(1, content_rect.width - body_extra_right)
+
+        y = title_rect.bottom + title_gap + body_extra_down
+        for block in instruction_blocks:
+            for line in _wrap_text_lines(block, body_font, body_max_width):
+                surf = body_font.render(line, True, (10, 10, 10))
+                rect = surf.get_rect()
+                rect.topleft = (content_rect.left + body_extra_right, y)
+                wrapped_lines.append((surf, rect))
+                y = rect.bottom + line_gap
+            y += line_gap
+
+        total_h = (y - content_rect.top)
+        if total_h <= content_rect.height or body_size <= 14:
+            instruction_title_surf = title_surf
+            instruction_title_rect = title_rect
+            instruction_line_surfs = wrapped_lines
+            break
+
+        body_size -= 1
+
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return False
+            if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                pygame.mouse.set_visible(False)
+                return True
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if start_btn_rect.collidepoint(event.pos) or whiteboard_rect.collidepoint(event.pos):
+                    pygame.mouse.set_visible(False)
+                    return True
+
+        draw_scrolling_background(0.0)
+        screen.blit(_whiteboard_img, whiteboard_rect)
+        screen.blit(instruction_title_surf, instruction_title_rect)
+        for surf, rect in instruction_line_surfs:
+            screen.blit(surf, rect)
+        screen.blit(_max_full_img, max_full_rect)
+        screen.blit(_start_btn_img, start_btn_rect)
+        pygame.display.flip()
+        clock.tick(60)
+
+
 # Main game loop
 def main() -> None:
     running = True
     clock = pygame.time.Clock()
+
+    if not show_menu(clock):
+        pygame.quit()
+        return
 
     while running:
         pygame.mouse.set_visible(False)
@@ -226,13 +430,13 @@ def main() -> None:
                 break
 
             keys = pygame.key.get_pressed()
-            if keys[pygame.K_w]:
+            if keys[pygame.K_w] or keys[pygame.K_UP]:
                 player_y -= PLAYER_SPEED_PX_PER_SEC * dt
-            if keys[pygame.K_s]:
+            if keys[pygame.K_s] or keys[pygame.K_DOWN]:
                 player_y += PLAYER_SPEED_PX_PER_SEC * dt
-            if keys[pygame.K_a]:
+            if keys[pygame.K_a] or keys[pygame.K_LEFT]:
                 player_x -= PLAYER_SPEED_PX_PER_SEC * dt
-            if keys[pygame.K_d]:
+            if keys[pygame.K_d] or keys[pygame.K_RIGHT]:
                 player_x += PLAYER_SPEED_PX_PER_SEC * dt
 
             player_w_max = max(_player_idle_img.get_width(), _player_shoot_img.get_width())
