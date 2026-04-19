@@ -247,6 +247,8 @@ def run(screen: pygame.Surface | None = None) -> None:
     start_btn_raw = pygame.image.load(start_button_path).convert_alpha()
     max_full_raw = pygame.image.load(max_full_path).convert_alpha()
 
+    invitation_path = os.path.join(asset_dir, "invitation.png")
+
     whiteboard_img = scale_to_fit(
         whiteboard_raw,
         int(screen_width * 1.0),
@@ -255,7 +257,17 @@ def run(screen: pygame.Surface | None = None) -> None:
 
     max_full_img = scale_to_height(max_full_raw, int(whiteboard_img.get_height() * 0.55))
     start_btn_img = scale_to_height(start_btn_raw, int(max_full_img.get_height() * 0.30))
-
+    invitation_img = None
+    if os.path.exists(invitation_path):
+        try:
+            inv_raw = pygame.image.load(invitation_path).convert_alpha()
+            # Make invitation a bit smaller so it doesn't dominate the screen
+            # Make invitation larger and slightly higher on screen
+            invitation_img = scale_to_fit(
+                inv_raw, int(screen_width * 0.65), int(screen_height * 0.65)
+            )
+        except Exception:
+            invitation_img = None
     def draw_scrolling_background(x_offset_px: float) -> None:
         x = -x_offset_px
         while x < screen_width:
@@ -647,9 +659,20 @@ def run(screen: pygame.Surface | None = None) -> None:
                 )
             )
 
+            # If player won and invitation image is available, prepare its rect.
+            invitation_rect = None
+            if won and (invitation_img is not None):
+                # Center horizontally, nudge up vertically (42% down instead of 50%)
+                invitation_rect = invitation_img.get_rect(center=(screen_width // 2, int(screen_height * 0.42)))
+
             pygame.mouse.set_visible(True)
             replay_requested = False
             home_requested = False
+
+            # If showing invitation, clear any pending input so leftover keys
+            # (e.g. SPACE from gameplay) don't immediately close the screen.
+            if invitation_rect is not None:
+                pygame.event.clear()
 
             while (not replay_requested) and (not home_requested):
                 for event in pygame.event.get():
@@ -657,17 +680,29 @@ def run(screen: pygame.Surface | None = None) -> None:
                         exit_whole_program()
                     if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         exit_whole_program()
+                    # If invitation is shown, only Enter or mouse click returns to caller
+                    if invitation_rect is not None:
+                        if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                            return
+                        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                            return
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                        if replay_btn_rect.collidepoint(event.pos):
-                            replay_requested = True
-                        elif home_btn_rect.collidepoint(event.pos):
-                            home_requested = True
+                        # Only check the replay/home buttons when invitation isn't shown
+                        if invitation_rect is None:
+                            if replay_btn_rect.collidepoint(event.pos):
+                                replay_requested = True
+                            elif home_btn_rect.collidepoint(event.pos):
+                                home_requested = True
 
                 draw_scrolling_background(bg_offset)
-                screen.blit(t_s, t_rect)
-                screen.blit(st_s, st_rect)
-                screen.blit(replay_btn_img, replay_btn_rect)
-                screen.blit(home_btn_img, home_btn_rect)
+                if invitation_rect is not None:
+                    # Show invitation image when won
+                    screen.blit(invitation_img, invitation_rect)
+                else:
+                    screen.blit(t_s, t_rect)
+                    screen.blit(st_s, st_rect)
+                    screen.blit(replay_btn_img, replay_btn_rect)
+                    screen.blit(home_btn_img, home_btn_rect)
                 pygame.display.flip()
                 clock.tick(60)
 
