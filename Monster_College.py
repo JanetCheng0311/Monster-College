@@ -34,10 +34,10 @@ _bg = pygame.transform.smoothscale(_bg_raw, (int(_bg_w * scale), int(_bg_h * sca
 LOGO_PATH = os.path.join(ASSET_DIR, "logo.png")
 START_BTN_PATH = os.path.join(ASSET_DIR, "start_button.png")
 
-VIDEO_PATH = os.path.join(ASSET_DIR, "skytoschool.mp4")
+VIDEO_PATH = os.path.join(ASSET_DIR, "monstercollegeintro.mp4")
 
 if not os.path.exists(VIDEO_PATH):
-    raise FileNotFoundError(f"Missing video file: {VIDEO_PATH}. Put skytoschool.mp4 in the menu&map folder.")
+    raise FileNotFoundError(f"Missing video file: {VIDEO_PATH}. Put monstercollegeintro.mp4 in the menu&map folder.")
 
 for _p in (LOGO_PATH, START_BTN_PATH):
     if not os.path.exists(_p):
@@ -166,23 +166,26 @@ def play_video_in_pygame(path: str) -> None:
     clock = pygame.time.Clock()
 
     # Prepare optional on-screen instruction (styled like the start screen)
-    font = pygame.font.Font(None, 48)
-    skip_allowed = os.path.basename(path).lower() == "skytoschool.mp4"
+    font = pygame.font.SysFont(None, 48)
+    video_name = os.path.basename(path).lower()
+    skip_allowed = video_name in {"skytoschool.mp4", "monstercollegeintro.mp4"}
     instr_s = None
     shadow = None
     instr_rect = None
     shadow_rect = None
     if skip_allowed:
-        instr_text = "Use TAB to skip video"
+        instr_text = "Press TAB to skip video"
         instr_s = font.render(instr_text, True, (255, 255, 255))
         shadow = font.render(instr_text, True, (0, 0, 0))
-        instr_rect = instr_s.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
+        # place the skip instruction at the top so it doesn't cover video subtitles
+        instr_rect = instr_s.get_rect(center=(SCREEN_WIDTH // 2, 30))
         shadow_rect = instr_rect.copy()
         shadow_rect.move_ip(2, 2)
 
     audio_temp = None
     try:
         # extract and play audio if present
+        audio_started = False
         try:
             if hasattr(clip, "audio") and clip.audio is not None:
                 tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -195,13 +198,16 @@ def play_video_in_pygame(path: str) -> None:
                         pygame.mixer.init()
                     pygame.mixer.music.load(audio_temp)
                     pygame.mixer.music.play()
+                    audio_started = True
                 except Exception as e:
                     print("Warning: failed to play audio via pygame.mixer:", e)
         except Exception as e:
             print("Warning: failed to extract/play audio:", e)
 
-        for frame in clip.iter_frames(fps=fps, dtype="uint8"):
-            # handle quit / escape / tab events while playing
+        # synchronize frames to audio playback time (or wall clock if no audio)
+        start_ticks = pygame.time.get_ticks()
+        for i, frame in enumerate(clip.iter_frames(fps=fps, dtype="uint8")):
+            # process events frequently so skip/quit are responsive
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     try:
@@ -244,6 +250,16 @@ def play_video_in_pygame(path: str) -> None:
                                 pass
                         return
 
+            # target time for this frame in milliseconds
+            target_ms = int(i * 1000.0 / fps)
+            # wait until it's time to display this frame (keeps sync with audio)
+            while True:
+                elapsed = pygame.time.get_ticks() - start_ticks
+                if elapsed >= target_ms:
+                    break
+                # handle events and yield to avoid blocking
+                clock.tick(60)
+
             # frame is HxWx3 RGB
             h, w = frame.shape[0], frame.shape[1]
             # create a surface from the frame bytes
@@ -252,13 +268,12 @@ def play_video_in_pygame(path: str) -> None:
             surf = pygame.transform.smoothscale(surf, (SCREEN_WIDTH, SCREEN_HEIGHT))
             screen.blit(surf, (0, 0))
 
-            # Draw the optional instruction over the video
+            # Draw the optional instruction over the video (top of screen)
             if instr_s is not None:
                 screen.blit(shadow, shadow_rect)
                 screen.blit(instr_s, instr_rect)
 
             pygame.display.flip()
-            clock.tick(fps)
     finally:
         try:
             clip.close()
