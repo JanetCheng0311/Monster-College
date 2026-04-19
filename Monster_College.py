@@ -71,7 +71,7 @@ def main() -> None:
     pressed_button = None
 
     # Pre-render simple instruction text
-    font = pygame.font.SysFont(None, 48)
+    font = pygame.font.Font(None, 48)
     instr_s = font.render("Press ENTER to play — ESC to quit", True, (255, 255, 255))
 
     while running:
@@ -166,7 +166,7 @@ def play_video_in_pygame(path: str) -> None:
     clock = pygame.time.Clock()
 
     # Prepare optional on-screen instruction (styled like the start screen)
-    font = pygame.font.SysFont(None, 48)
+    font = pygame.font.Font(None, 48)
     skip_allowed = os.path.basename(path).lower() == "skytoschool.mp4"
     instr_s = None
     shadow = None
@@ -363,7 +363,7 @@ def show_map() -> None:
 
     pressed_btn = None
     # Prepare bottom instruction like the start screen
-    font = pygame.font.SysFont(None, 48)
+    font = pygame.font.Font(None, 48)
     esc_text = "ESC to close game"
     instr_s = font.render(esc_text, True, (255, 255, 255))
     shadow = font.render(esc_text, True, (0, 0, 0))
@@ -373,6 +373,7 @@ def show_map() -> None:
 
     while showing:
         launch_mini_game = False
+        launch_tiger_game = False
 
         mx, my = pygame.mouse.get_pos()
         hovered_robot = robot_rect.collidepoint((mx, my)) if robot_rect is not None else False
@@ -404,7 +405,8 @@ def show_map() -> None:
                     # Launch Max Mini Game (smooth: keep this frame on-screen; don't tear down the display).
                     launch_mini_game = True
                 elif pressed_btn == "tiger" and hovered_tiger:
-                    print("Tiger button clicked")
+                    # Launch Tiger Game with the same embedded-jump behavior as Max Mini Game.
+                    launch_tiger_game = True
                 elif pressed_btn == "dog" and hovered_dog:
                     print("Dog egg button clicked")
                 pressed_btn = None
@@ -457,6 +459,35 @@ def show_map() -> None:
                     pass
             except Exception as e:
                 print("Failed to run Max Mini Game:", e)
+
+        if launch_tiger_game:
+            tiger_path = os.path.join(os.path.dirname(__file__), "tiger-game", "main.py")
+            if not os.path.exists(tiger_path):
+                print("Tiger game script not found at", tiger_path)
+                continue
+
+            # Run tiger game inside the same Pygame window (no subprocess).
+            try:
+                spec = importlib.util.spec_from_file_location("tiger_game", tiger_path)
+                if spec is None or spec.loader is None:
+                    raise RuntimeError("Unable to load Tiger Game module")
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+
+                if hasattr(mod, "run"):
+                    mod.run(screen)
+                elif hasattr(mod, "main"):
+                    mod.main(screen)
+                else:
+                    raise RuntimeError("Tiger Game does not define run() or main()")
+
+                # Clear any queued events from the tiger game so the map doesn't instantly react.
+                try:
+                    pygame.event.clear()
+                except Exception:
+                    pass
+            except Exception as e:
+                print("Failed to run Tiger Game:", e)
 
 
 if __name__ == "__main__":

@@ -5,9 +5,6 @@ Behavior:
 - When it ends, shows two buttons: A (left) and B (right).
 - Clicking A plays `Test_video_A.mp4`.
 - Clicking B plays `Test_video_B.mp4`.
- - Plays `Max_scenes001.mp4`.
- - Clicking A plays `Round1_A.mp4`.
- - Clicking B plays `Round1_B.mp4`.
 
 Notes:
 - Video is decoded with MoviePy and displayed with Pygame.
@@ -29,9 +26,9 @@ class InteractiveConfig:
 
     base_dir: Path
 
-    start_video: str = "Max_scenes001.mp4"
-    option_a_video: str = "Round1_A.mp4"
-    option_b_video: str = "Round1_B.mp4"
+    start_video: str = "Test_video_01.mp4"
+    option_a_video: str = "Test_video_A.mp4"
+    option_b_video: str = "Test_video_B.mp4"
 
     fps_fallback: int = 30
 
@@ -89,8 +86,7 @@ def _play_video(screen: pygame.Surface, video_path: Path, fps_fallback: int) -> 
     audio_tmp_path: Path | None = None
     try:
         if pygame.mixer.get_init() is None:
-            # Initialize mixer with parameters matching the WAV we write: 44.1kHz, 16-bit, stereo
-            pygame.mixer.init(frequency=44100, size=-16, channels=2)
+            pygame.mixer.init()
     except Exception as e:
         print("[audio] pygame.mixer.init failed:", type(e).__name__, e)
 
@@ -100,23 +96,9 @@ def _play_video(screen: pygame.Surface, video_path: Path, fps_fallback: int) -> 
             cache_dir.mkdir(parents=True, exist_ok=True)
             audio_tmp_path = cache_dir / f"{video_path.stem}.wav"
 
-            # Re-extract audio if the source video is newer than the cached WAV
-            need_extract = True
-            try:
-                if audio_tmp_path.exists() and audio_tmp_path.stat().st_size > 0:
-                    video_mtime = video_path.stat().st_mtime
-                    audio_mtime = audio_tmp_path.stat().st_mtime
-                    if audio_mtime >= video_mtime:
-                        need_extract = False
-            except Exception:
-                need_extract = True
-
-            # Force re-extraction for recently replaced / important clips
-            if video_path.stem in ("Max_scenes001", "Round1_A", "Round1_B"):
-                need_extract = True
-
-            if need_extract:
-                # Write once, reuse next runs unless video is replaced.
+            if (not audio_tmp_path.exists()) or audio_tmp_path.stat().st_size == 0:
+                # Write once, reuse next runs.
+                # MoviePy 2.x API: no `verbose` argument.
                 clip.audio.write_audiofile(
                     str(audio_tmp_path),
                     fps=44100,

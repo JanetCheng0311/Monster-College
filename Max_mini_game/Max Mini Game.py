@@ -196,8 +196,8 @@ def run(screen: pygame.Surface | None = None) -> None:
     round_duration_sec = 60.0
     win_marks_gt = 30
 
-    hud_font = pygame.font.SysFont(None, 42)
-    end_font = pygame.font.SysFont(None, 96)
+    hud_font = pygame.font.Font(None, 42)
+    end_font = pygame.font.Font(None, 96)
 
     def scale_to_height(img: pygame.Surface, target_h: int) -> pygame.Surface:
         target_h = max(1, int(target_h))
@@ -358,8 +358,8 @@ def run(screen: pygame.Surface | None = None) -> None:
 
         while True:
             title_size = max(18, int(body_size * title_scale))
-            title_font = pygame.font.SysFont(None, title_size)
-            body_font = pygame.font.SysFont(None, body_size)
+            title_font = pygame.font.Font(None, title_size)
+            body_font = pygame.font.Font(None, body_size)
 
             wrapped_lines: list[tuple[pygame.Surface, pygame.Rect]] = []
 
