@@ -775,6 +775,9 @@ class Tetris:
             yy += self.font.get_height() + 10
 
     def draw_game_over(self):
+        overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 140))
+        self.screen.blit(overlay, (0, 0))
         title_font = pygame.font.Font(FONT_PATH, max(30, int(WINDOW_H * 0.08)))
         stat_font = pygame.font.Font(FONT_PATH, max(24, int(WINDOW_H * 0.045)))
         hint_font = pygame.font.Font(FONT_PATH, max(18, int(WINDOW_H * 0.03)))
@@ -854,4 +857,73 @@ class Tetris:
                     self.debug_mode = not self.debug_mode
                 elif event.key == pygame.K_COMMA:
                     self.debug_mode = True
-*** End File
+                    self.debug_offset_ms += self.debug_step_ms
+                    self.drop_ms = self.compute_drop_ms()
+                elif event.key == pygame.K_PERIOD:
+                    self.debug_mode = True
+                    self.debug_offset_ms -= self.debug_step_ms
+                    self.drop_ms = self.compute_drop_ms()
+            if event.type == pygame.KEYUP:
+                # stop hold when releasing left/right
+                if event.key == pygame.K_LEFT and self.hold_dir == -1:
+                    self.hold_dir = None
+                    self.hold_time = 0
+                    self.hold_repeat_acc = 0
+                elif event.key == pygame.K_RIGHT and self.hold_dir == 1:
+                    self.hold_dir = None
+                    self.hold_time = 0
+                    self.hold_repeat_acc = 0
+
+        # remove per-frame instantaneous repeats; horizontal hold handled in update(dt)
+        keys = pygame.key.get_pressed()
+        if not self.game_over:
+            # keep single-keydown moves from KEYDOWN events; holding is handled in update()
+            pass
+
+    def update(self, dt):
+        if self.game_over:
+            return
+        # `dt` from `clock.tick()` is already milliseconds; don't multiply by 1000.
+        self.drop_accumulator += dt
+        if self.drop_accumulator >= self.drop_ms:
+            self.drop_accumulator = 0
+            if not self.soft_drop():
+                self.on_ground = True
+        if self.on_ground:
+            self.lock_timer_ms += dt
+            if self.lock_timer_ms >= self.mode_lock_delay_ms:
+                self.lock_piece()
+        # handle hold-to-repeat for horizontal movement
+        if self.hold_dir is not None:
+            self.hold_time += dt
+            if self.hold_time >= self.hold_delay_ms:
+                self.hold_repeat_acc += dt
+                while self.hold_repeat_acc >= self.hold_repeat_interval:
+                    # repeat move
+                    self.move(self.hold_dir)
+                    self.hold_repeat_acc -= self.hold_repeat_interval
+
+    def run(self):
+        self.show_start_sequence()
+        self.start_game_music()
+        while not self.return_to_map:
+            dt = self.clock.tick(FPS)
+            self.handle_events()
+            self.update(dt)
+            self.draw()
+
+
+def run(screen=None):
+    Tetris(screen=screen).run()
+
+
+def main(screen=None):
+    run(screen)
+
+
+def main():
+    Tetris().run()
+
+
+if __name__ == "__main__":
+    main()
