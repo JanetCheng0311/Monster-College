@@ -1,8 +1,11 @@
+import os
 import random
 import sys
+import tempfile
 from dataclasses import dataclass
 
 import pygame
+from moviepy.video.io.VideoFileClip import VideoFileClip
 
 WIDTH = 10
 HEIGHT = 20
@@ -16,16 +19,33 @@ WINDOW_W = 800
 WINDOW_H = 600
 FPS = 60
 START_DROP_MS = 500
-MIN_DROP_MS = 10
-DEBUG_MIN_MS = 10
+MIN_DROP_MS = 30
+DEBUG_MIN_MS = 30
 PER_LEVEL_DEC = 25
+LOCK_DELAY_MS = 700
+FONT_PATH = os.path.join(os.path.dirname(__file__), "..", "font", "PixelifySans-VariableFont_wght.ttf")
+BG_IMAGE_PATH = os.path.join(os.path.dirname(__file__), "gamebg.png")
+MUSIC_PATH = os.path.join(os.path.dirname(__file__), "Cloud Coins.mp3")
+BUTTON_CLICK_SFX_PATH = os.path.join(os.path.dirname(__file__), "button_clicking_soun_#3-1776674335806.mp3")
+LINE_CLEAR_SFX_PATH = os.path.join(os.path.dirname(__file__), "tetris_line_clear_so_#4-1776674161372.mp3")
+PUZZLE_DROP_SFX_PATH = os.path.join(os.path.dirname(__file__), "tetris_puzzle_drop_s_#1-1776674215861.mp3")
+INTRO_VIDEO_CANDIDATES = [
+    os.path.join(os.path.dirname(__file__), "takebreak.mp4"),
+    os.path.join(os.path.dirname(__file__), "takeabreak.mp4"),
+]
+GAME_TITLE = "Sir Doggegg's Nap Break"
+GAME_STORY = (
+    "Sir Doggegg is exhausted from a long day of work. "
+    "It just wanted a quick nap, but the unfinished tasks followed it into the dream. "
+    "Help Sir Doggegg finish its work while it sleeps, and let it wake up relaxed and ready again."
+)
 
 BG = (15, 18, 28)
-PANEL = (25, 28, 40)
-GRID = (45, 50, 68)
-TEXT = (235, 238, 245)
-MUTED = (170, 176, 190)
-ACCENT = (92, 190, 255)
+PANEL = (74, 55, 34)
+GRID = (166, 131, 86)
+TEXT = (250, 242, 224)
+MUTED = (232, 214, 182)
+ACCENT = (114, 183, 214)
 GAME_OVER = (255, 95, 95)
 
 SHAPES = {
@@ -103,28 +123,76 @@ class Piece:
 
 
 class Tetris:
-    def __init__(self):
+    def __init__(self, screen=None):
         pygame.init()
         pygame.display.set_caption("Tetris")
-        # open in fullscreen to match menu (`Monster_College.py` uses fullscreen)
-        self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        # open in fullscreen when launched directly; reuse the provided screen when launched from the map
+        if screen is None:
+            self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+        else:
+            self.screen = screen
+        self.audio_enabled = False
+        self.game_music = None
+        self.game_music_channel = None
+        self.button_click_sfx = None
+        self.line_clear_sfx = None
+        self.puzzle_drop_sfx = None
+        self.puzzle_drop_boost_sfx = None
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            self.audio_enabled = pygame.mixer.get_init() is not None
+        except Exception as e:
+            print(f"Warning: Could not initialize audio mixer: {e}")
         # update module-level window size constants to actual screen size
         w, h = self.screen.get_size()
         globals()["WINDOW_W"] = w
         globals()["WINDOW_H"] = h
-        # center the board and sidebar within the window
-        total_board_w = WIDTH * CELL + SIDEBAR
+        # scale fonts relative to window height and keep them about 30% smaller than before
+        small_fs = max(10, int(h * 0.022))
+        big_fs = max(16, int(h * 0.039))
+        self.font = pygame.font.Font(FONT_PATH, small_fs)
+        self.big_font = pygame.font.Font(FONT_PATH, big_fs)
+        preview_cell = max(12, int(self.font.get_height() * 0.9))
+        hold_panel_w = max(120, preview_cell * 4 + 28)
+
+        # center the full layout, including the left hold/next panel and right sidebar
+        total_board_w = hold_panel_w + WIDTH * CELL + SIDEBAR + 30
         total_board_h = HEIGHT * CELL
-        new_board_x = max(0, (w - total_board_w) // 2)
+        left_edge = max(0, (w - total_board_w) // 2)
+        new_board_x = left_edge + hold_panel_w + 20
         new_board_y = max(0, (h - total_board_h) // 2)
         globals()["BOARD_X"] = new_board_x
         globals()["BOARD_Y"] = new_board_y
         self.clock = pygame.time.Clock()
-        # scale fonts relative to window height so sidebar text stays readable on large screens
-        small_fs = max(14, int(h * 0.04))
-        big_fs = max(24, int(h * 0.08))
-        self.font = pygame.font.SysFont("arial", small_fs, bold=True)
-        self.big_font = pygame.font.SysFont("arial", big_fs, bold=True)
+        # load background image and scale it to screen size
+        try:
+            bg_img = pygame.image.load(BG_IMAGE_PATH)
+            self.bg_image = pygame.transform.scale(bg_img, (w, h))
+        except Exception as e:
+            print(f"Warning: Could not load background image: {e}")
+            self.bg_image = None
+        if self.audio_enabled and os.path.exists(MUSIC_PATH):
+            try:
+                self.game_music = pygame.mixer.Sound(MUSIC_PATH)
+                self.game_music_channel = pygame.mixer.Channel(1)
+            except Exception as e:
+                print(f"Warning: Could not load game music: {e}")
+        if self.audio_enabled:
+            try:
+                if os.path.exists(BUTTON_CLICK_SFX_PATH):
+                    self.button_click_sfx = pygame.mixer.Sound(BUTTON_CLICK_SFX_PATH)
+                    self.button_click_sfx.set_volume(0.7)
+                if os.path.exists(LINE_CLEAR_SFX_PATH):
+                    self.line_clear_sfx = pygame.mixer.Sound(LINE_CLEAR_SFX_PATH)
+                    self.line_clear_sfx.set_volume(0.7)
+                if os.path.exists(PUZZLE_DROP_SFX_PATH):
+                    self.puzzle_drop_sfx = pygame.mixer.Sound(PUZZLE_DROP_SFX_PATH)
+                    self.puzzle_drop_sfx.set_volume(1.0)
+                    self.puzzle_drop_boost_sfx = pygame.mixer.Sound(PUZZLE_DROP_SFX_PATH)
+                    self.puzzle_drop_boost_sfx.set_volume(0.5)
+            except Exception as e:
+                print(f"Warning: Could not load one or more SFX files: {e}")
         self.board = new_board()
         self.current = None
         self.next_piece = self.random_piece()
@@ -140,6 +208,16 @@ class Tetris:
         self.debug_offset_ms = 0
         self.debug_step_ms = 200
         self.drop_accumulator = 0
+        self.lock_timer_ms = 0
+        self.on_ground = False
+        self.mode_name = "Easy Mode"
+        self.mode_start_drop_ms = START_DROP_MS
+        self.mode_per_level_dec = PER_LEVEL_DEC
+        self.mode_lock_delay_ms = LOCK_DELAY_MS
+        self.mode_min_drop_ms = MIN_DROP_MS
+        self.mode_win_lines = 20
+        self.has_won = False
+        self.return_to_map = False
         self.spawn_piece()
         # Horizontal hold-to-repeat state
         self.hold_dir = None  # -1 for left, 1 for right, None for no hold
@@ -164,6 +242,12 @@ class Tetris:
             self.game_over = True
         # after spawning a new piece, allow holding again
         self.can_hold = True
+        self.lock_timer_ms = 0
+        self.on_ground = False
+
+    def reset_lock_delay(self):
+        self.lock_timer_ms = 0
+        self.on_ground = False
 
     def collides(self, piece, dx, dy, rotation):
         rotations = SHAPES[piece.kind]
@@ -178,6 +262,13 @@ class Tetris:
         return False
 
     def lock_piece(self):
+        if self.puzzle_drop_sfx is not None:
+            try:
+                self.puzzle_drop_sfx.play()
+                if self.puzzle_drop_boost_sfx is not None:
+                    self.puzzle_drop_boost_sfx.play()
+            except Exception:
+                pass
         for cx, cy in self.current.cells:
             x = self.current.x + cx
             y = self.current.y + cy
@@ -185,9 +276,14 @@ class Tetris:
                 self.board[y][x] = self.current.color
         cleared = self.clear_lines()
         if cleared:
+            if self.line_clear_sfx is not None:
+                try:
+                    self.line_clear_sfx.play()
+                except Exception:
+                    pass
             self.lines += cleared
             self.score += [0, 100, 300, 500, 800][cleared] * self.level
-            self.level = 1 + self.lines // 10
+            self.level = 1 + self.lines // 2
             self.drop_ms = self.compute_drop_ms()
         self.spawn_piece()
 
@@ -231,11 +327,13 @@ class Tetris:
     def move(self, dx):
         if not self.game_over and not self.collides(self.current, dx, 0, self.current.rotation):
             self.current.x += dx
+            self.reset_lock_delay()
 
     def soft_drop(self):
         if not self.game_over and not self.collides(self.current, 0, 1, self.current.rotation):
             self.current.y += 1
             self.score += 1
+            self.reset_lock_delay()
             return True
         return False
 
@@ -256,6 +354,7 @@ class Tetris:
             if not self.collides(self.current, kick, 0, next_rotation):
                 self.current.x += kick
                 self.current.rotation = next_rotation
+                self.reset_lock_delay()
                 return
 
     def restart(self):
@@ -268,16 +367,293 @@ class Tetris:
         self.score = 0
         self.lines = 0
         self.level = 1
+        self.has_won = False
         self.drop_ms = self.compute_drop_ms()
         self.drop_accumulator = 0
         self.spawn_piece()
 
     def compute_drop_ms(self):
-        base = START_DROP_MS - (self.level - 1) * PER_LEVEL_DEC
+        base = self.mode_start_drop_ms - (self.level - 1) * self.mode_per_level_dec
         value = base + self.debug_offset_ms
         if self.debug_mode:
             return max(DEBUG_MIN_MS, int(value))
-        return max(MIN_DROP_MS, int(value))
+        return max(self.mode_min_drop_ms, int(value))
+
+    def start_game_music(self):
+        if self.game_music_channel is None or self.game_music is None:
+            return
+        if not self.game_music_channel.get_busy():
+            self.game_music_channel.set_volume(0.9)
+            self.game_music_channel.play(self.game_music, loops=-1)
+
+    def request_return_to_map(self):
+        self.return_to_map = True
+        try:
+            if self.audio_enabled:
+                pygame.mixer.music.stop()
+        except Exception:
+            pass
+        if self.game_music_channel is not None:
+            try:
+                self.game_music_channel.stop()
+            except Exception:
+                pass
+
+    def wrap_text(self, text, font, max_width):
+        words = text.split()
+        lines = []
+        current = ""
+        for word in words:
+            trial = word if not current else f"{current} {word}"
+            if font.size(trial)[0] <= max_width:
+                current = trial
+            else:
+                if current:
+                    lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+        return lines
+
+    def apply_mode_settings(self, mode_name):
+        if mode_name == "Difficult Mode":
+            self.mode_name = "Difficult Mode"
+            self.mode_start_drop_ms = 430
+            self.mode_per_level_dec = 32
+            self.mode_lock_delay_ms = 520
+            self.mode_min_drop_ms = 100
+            self.mode_win_lines = 30
+        else:
+            self.mode_name = "Easy Mode"
+            self.mode_start_drop_ms = 520
+            self.mode_per_level_dec = 24
+            self.mode_lock_delay_ms = 700
+            self.mode_min_drop_ms = 200
+            self.mode_win_lines = 20
+
+    def title_lines(self):
+        return ["Sir Doggegg's", "Nap Break"]
+
+    def play_intro_video(self, path):
+        if path is None or not os.path.exists(path):
+            return None
+
+        clip = None
+        audio_temp_path = None
+        last_surface = None
+        try:
+            clip = VideoFileClip(path)
+            if clip.audio is not None and self.audio_enabled:
+                with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+                    audio_temp_path = tmp.name
+                clip.audio.write_audiofile(
+                    audio_temp_path,
+                    fps=44100,
+                    nbytes=2,
+                    codec="pcm_s16le",
+                    logger=None,
+                )
+                pygame.mixer.music.load(audio_temp_path)
+                pygame.mixer.music.set_volume(1.0)
+                pygame.mixer.music.play()
+            fps = clip.fps if clip.fps and clip.fps > 0 else 24
+            for frame in clip.iter_frames(fps=fps, dtype="uint8"):
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_TAB:
+                        return last_surface
+
+                frame_surface = pygame.image.frombuffer(
+                    frame.tobytes(), (frame.shape[1], frame.shape[0]), "RGB"
+                )
+                frame_surface = pygame.transform.smoothscale(frame_surface, (WINDOW_W, WINDOW_H))
+                last_surface = frame_surface.copy()
+
+                self.screen.blit(frame_surface, (0, 0))
+                skip_hint = self.font.render("Press TAB to skip", True, (255, 255, 255))
+                self.screen.blit(skip_hint, (30, WINDOW_H - 44))
+                pygame.display.flip()
+                self.clock.tick(int(max(1, min(60, fps))))
+        except Exception as e:
+            print(f"Warning: Could not play intro video: {e}")
+        finally:
+            if self.audio_enabled:
+                try:
+                    pygame.mixer.music.stop()
+                except Exception:
+                    pass
+            if clip is not None:
+                clip.close()
+            if audio_temp_path is not None and os.path.exists(audio_temp_path):
+                try:
+                    os.remove(audio_temp_path)
+                except OSError:
+                    pass
+
+        return last_surface
+
+    def show_intro_rules_card(self, last_frame):
+        card_w = min(900, WINDOW_W - 120)
+        card_h = min(520, WINDOW_H - 120)
+        card_x = (WINDOW_W - card_w) // 2
+        card_y = (WINDOW_H - card_h) // 2
+
+        title_font = pygame.font.Font(FONT_PATH, max(22, int(WINDOW_H * 0.04)))
+        info_font = pygame.font.Font(FONT_PATH, max(14, int(WINDOW_H * 0.024)))
+
+        story_lines = self.wrap_text(GAME_STORY, info_font, card_w - 80)
+        rules = [
+            "Rules:",
+            "- Clear lines to help Sir Doggegg finish dream tasks.",
+            "- Move/rotate quickly before each piece locks.",
+            "- Every 2 lines raises speed.",
+            "- Hold one piece with C or Left Shift.",
+        ]
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE, pygame.K_TAB):
+                    if self.button_click_sfx is not None:
+                        try:
+                            self.button_click_sfx.play()
+                        except Exception:
+                            pass
+                    return
+
+            self.draw_game_background()
+
+            dim = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+            dim.fill((0, 0, 0, 120))
+            self.screen.blit(dim, (0, 0))
+
+            pygame.draw.rect(self.screen, (250, 250, 250), (card_x, card_y, card_w, card_h), border_radius=20)
+            pygame.draw.rect(self.screen, (55, 55, 55), (card_x, card_y, card_w, card_h), 2, border_radius=20)
+
+            title_y = card_y + 24
+            for line in self.title_lines():
+                title_surface = title_font.render(line, True, (28, 28, 28))
+                self.screen.blit(title_surface, (card_x + 30, title_y))
+                title_y += title_surface.get_height() + 2
+
+            y = title_y + 18
+            for line in story_lines:
+                s = info_font.render(line, True, (40, 40, 40))
+                self.screen.blit(s, (card_x + 32, y))
+                y += info_font.get_height() + 8
+
+            y += 14
+            for line in rules:
+                s = info_font.render(line, True, (30, 30, 30))
+                self.screen.blit(s, (card_x + 32, y))
+                y += info_font.get_height() + 8
+
+            tip = info_font.render("Press ENTER to continue", True, (50, 50, 50))
+            self.screen.blit(tip, (card_x + 32, card_y + card_h - 42))
+            pygame.display.flip()
+            self.clock.tick(FPS)
+
+    def show_mode_select(self):
+        modes = ["Easy Mode", "Difficult Mode"]
+        selected = 0
+        title_font = pygame.font.Font(FONT_PATH, max(24, int(WINDOW_H * 0.045)))
+        info_font = pygame.font.Font(FONT_PATH, max(15, int(WINDOW_H * 0.026)))
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == pygame.KEYDOWN and event.key in (pygame.K_UP, pygame.K_w):
+                    if self.button_click_sfx is not None:
+                        try:
+                            self.button_click_sfx.play()
+                        except Exception:
+                            pass
+                    selected = (selected - 1) % len(modes)
+                if event.type == pygame.KEYDOWN and event.key in (pygame.K_DOWN, pygame.K_s):
+                    if self.button_click_sfx is not None:
+                        try:
+                            self.button_click_sfx.play()
+                        except Exception:
+                            pass
+                    selected = (selected + 1) % len(modes)
+                if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_SPACE):
+                    if self.button_click_sfx is not None:
+                        try:
+                            self.button_click_sfx.play()
+                        except Exception:
+                            pass
+                    return modes[selected]
+
+            self.draw_game_background()
+
+            dim = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
+            dim.fill((0, 0, 0, 120))
+            self.screen.blit(dim, (0, 0))
+
+            panel_w, panel_h = min(840, WINDOW_W - 120), 420
+            panel_x = (WINDOW_W - panel_w) // 2
+            panel_y = (WINDOW_H - panel_h) // 2
+            pygame.draw.rect(self.screen, (250, 250, 250), (panel_x, panel_y, panel_w, panel_h), border_radius=20)
+            pygame.draw.rect(self.screen, (55, 55, 55), (panel_x, panel_y, panel_w, panel_h), 2, border_radius=20)
+
+            title_top = panel_y + 24
+            for line in self.title_lines():
+                title = title_font.render(line, True, (25, 25, 25))
+                self.screen.blit(title, title.get_rect(center=(WINDOW_W // 2, title_top + title.get_height() // 2)))
+                title_top += title.get_height() + 2
+
+            mode_desc = {
+                "Easy Mode": "Win by clearing 20 lines. Min speed is 200ms.",
+                "Difficult Mode": "Win by clearing 30 lines. Faster pace and shorter lock delay.",
+            }
+
+            y = panel_y + 186
+            for i, mode in enumerate(modes):
+                is_selected = i == selected
+                row_color = (230, 240, 255) if is_selected else (240, 240, 240)
+                text_color = (25, 25, 25)
+                pygame.draw.rect(self.screen, row_color, (panel_x + 42, y - 10, panel_w - 84, 84), border_radius=10)
+                mode_text = info_font.render(mode, True, text_color)
+                desc_text = info_font.render(mode_desc[mode], True, (55, 55, 55))
+                marker = ">" if is_selected else " "
+                marker_text = info_font.render(marker, True, (35, 90, 140))
+                self.screen.blit(marker_text, (panel_x + 52, y + 12))
+                self.screen.blit(mode_text, (panel_x + 76, y))
+                self.screen.blit(desc_text, (panel_x + 76, y + 36))
+                y += 104
+
+            hint = info_font.render("Use UP/DOWN and ENTER to start", True, (45, 45, 45))
+            self.screen.blit(hint, hint.get_rect(center=(WINDOW_W // 2, panel_y + panel_h - 24)))
+            pygame.display.flip()
+            self.clock.tick(FPS)
+
+    def return_to_mode_select(self):
+        selected_mode = self.show_mode_select()
+        self.apply_mode_settings(selected_mode)
+        self.restart()
+
+    def show_start_sequence(self):
+        intro_path = next((p for p in INTRO_VIDEO_CANDIDATES if os.path.exists(p)), None)
+        last_frame = self.play_intro_video(intro_path) if intro_path else None
+        self.show_intro_rules_card(last_frame)
+        selected_mode = self.show_mode_select()
+        self.apply_mode_settings(selected_mode)
+        self.restart()
 
     def draw_cell(self, x, y, color):
         rect = pygame.Rect(BOARD_X + x * CELL, BOARD_Y + y * CELL, CELL, CELL)
@@ -305,21 +681,40 @@ class Tetris:
         sx = BOARD_X + WIDTH * CELL + 30
         pygame.draw.rect(self.screen, PANEL, (BOARD_X + WIDTH * CELL + 20, BOARD_Y - 10, SIDEBAR - 10, HEIGHT * CELL + 20), border_radius=18)
 
+        preview_cell = max(12, int(self.font.get_height() * 0.9))
+        hold_panel_w = max(120, preview_cell * 4 + 28)
+        hold_panel_h = max(240, preview_cell * 6 + 90)
+        hold_panel_x = max(10, BOARD_X - hold_panel_w - 20)
+        hold_panel_y = BOARD_Y - 10
+        pygame.draw.rect(self.screen, PANEL, (hold_panel_x, hold_panel_y, hold_panel_w, hold_panel_h), border_radius=18)
+
         # place the sidebar contents relative to BOARD_Y so the whole group stays centered
         sidebar_top = BOARD_Y + 12
-        title = self.big_font.render("TETRIS", True, TEXT)
-        self.screen.blit(title, (sx, sidebar_top))
+        title_font_size = self.big_font.get_height()
+        title_font = pygame.font.Font(FONT_PATH, title_font_size)
+        title_surfaces = [title_font.render(line, True, TEXT) for line in self.title_lines()]
+        while title_font_size > max(12, int(WINDOW_H * 0.02)):
+            widest = max(surface.get_width() for surface in title_surfaces)
+            if widest <= SIDEBAR - 24:
+                break
+            title_font_size -= 1
+            title_font = pygame.font.Font(FONT_PATH, title_font_size)
+            title_surfaces = [title_font.render(line, True, TEXT) for line in self.title_lines()]
+        title_y = sidebar_top
+        for surface in title_surfaces:
+            self.screen.blit(surface, (sx, title_y))
+            title_y += surface.get_height() + 2
 
         # Stats list (scaled and spaced based on font height)
-        line_h = self.font.get_height() + 12
-        stats_start = sidebar_top + title.get_height() + 18
+        line_h = self.font.get_height() + 18
+        stats_start = title_y + 18
 
         def label(text, value, offset_index):
             y = stats_start + offset_index * line_h
             t = self.font.render(text, True, MUTED)
             v = self.font.render(str(value), True, TEXT)
             self.screen.blit(t, (sx, y))
-            self.screen.blit(v, (sx, y + self.font.get_height()))
+            self.screen.blit(v, (sx, y + self.font.get_height() + 2))
 
         label("Score", self.score, 0)
         label("Lines", self.lines, 1)
@@ -335,13 +730,24 @@ class Tetris:
         d = self.font.render(f"Drop(ms): {drop_val}", True, TEXT)
         self.screen.blit(d, (sx, stats_start + 4 * line_h))
 
-        # Hold preview (above other sidebar content)
+        # Next preview above Hold in the left panel
+        left_label_x = hold_panel_x + 12
+        next_label_y = hold_panel_y + 14
+        nxt = self.font.render("Next", True, MUTED)
+        self.screen.blit(nxt, (left_label_x, next_label_y))
+        next_box_y = next_label_y + nxt.get_height() + 14
+        preview_x = left_label_x + 6
+        for cx, cy in self.next_piece.cells:
+            rect = pygame.Rect(preview_x + cx * preview_cell, next_box_y + cy * preview_cell, preview_cell, preview_cell)
+            pygame.draw.rect(self.screen, self.next_piece.color, rect.inflate(-3, -3), border_radius=6)
+            pygame.draw.rect(self.screen, (255, 255, 255), rect.inflate(-3, -3), 1, border_radius=6)
+
+        # Hold preview below Next in the same left panel
         hld = self.font.render("Hold", True, MUTED)
-        hold_preview_x = sx + 15
-        hold_preview_y = sidebar_top + title.get_height() + 6
-        self.screen.blit(hld, (sx, hold_preview_y))
-        hold_box_y = hold_preview_y + hld.get_height() + 6
-        preview_cell = max(12, int(self.font.get_height() * 0.9))
+        hold_label_y = next_box_y + preview_cell * 3 + 28
+        self.screen.blit(hld, (left_label_x, hold_label_y))
+        hold_box_y = hold_label_y + hld.get_height() + 14
+        hold_preview_x = left_label_x + 6
         if self.hold_piece is not None:
             for cx, cy in self.hold_piece.cells:
                 rect = pygame.Rect(hold_preview_x + cx * preview_cell, hold_box_y + cy * preview_cell, preview_cell, preview_cell)
@@ -349,17 +755,6 @@ class Tetris:
                 pygame.draw.rect(self.screen, (255, 255, 255), rect.inflate(-3, -3), 1, border_radius=6)
         else:
             pygame.draw.rect(self.screen, GRID, (hold_preview_x, hold_box_y, preview_cell * 4, preview_cell * 3), 1)
-
-        # Next preview (placed under stats)
-        nxt_y = stats_start + 5 * line_h + 8
-        nxt = self.font.render("Next", True, MUTED)
-        self.screen.blit(nxt, (sx, nxt_y))
-        preview_x = sx + 15
-        preview_y = nxt_y + nxt.get_height() + 8
-        for cx, cy in self.next_piece.cells:
-            rect = pygame.Rect(preview_x + cx * preview_cell, preview_y + cy * preview_cell, preview_cell, preview_cell)
-            pygame.draw.rect(self.screen, self.next_piece.color, rect.inflate(-3, -3), border_radius=6)
-            pygame.draw.rect(self.screen, (255, 255, 255), rect.inflate(-3, -3), 1, border_radius=6)
 
         # Controls at bottom of sidebar (anchor near board bottom)
         controls = [
@@ -372,26 +767,47 @@ class Tetris:
             "Esc: quit",
         ]
         bottom_margin = 20
-        controls_start = BOARD_Y + HEIGHT * CELL - bottom_margin - len(controls) * (self.font.get_height() + 6)
+        controls_start = BOARD_Y + HEIGHT * CELL - bottom_margin - len(controls) * (self.font.get_height() + 10)
         yy = controls_start
         for line in controls:
             txt = self.font.render(line, True, MUTED)
             self.screen.blit(txt, (sx, yy))
-            yy += self.font.get_height() + 6
+            yy += self.font.get_height() + 10
 
     def draw_game_over(self):
-        overlay = pygame.Surface((WINDOW_W, WINDOW_H), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 140))
-        self.screen.blit(overlay, (0, 0))
-        text = self.big_font.render("Game Over", True, GAME_OVER)
-        sub = self.font.render("Press R to restart", True, TEXT)
-        self.screen.blit(text, text.get_rect(center=(WINDOW_W // 2, WINDOW_H // 2 - 25)))
-        self.screen.blit(sub, sub.get_rect(center=(WINDOW_W // 2, WINDOW_H // 2 + 25)))
+        title_font = pygame.font.Font(FONT_PATH, max(30, int(WINDOW_H * 0.08)))
+        stat_font = pygame.font.Font(FONT_PATH, max(24, int(WINDOW_H * 0.045)))
+        hint_font = pygame.font.Font(FONT_PATH, max(18, int(WINDOW_H * 0.03)))
 
-    def draw(self):
-        self.screen.fill(BG)
+        won_by_lines = self.lines >= self.mode_win_lines
+        headline = "You Win!" if won_by_lines else "Game Over"
+        headline_color = ACCENT if won_by_lines else GAME_OVER
+        game_over_text = title_font.render(headline, True, headline_color)
+        score_text = stat_font.render(f"Score: {self.score}", True, TEXT)
+        lines_text = stat_font.render(f"Lines Cleared: {self.lines}", True, TEXT)
+        restart_text = hint_font.render("Press R to restart", True, TEXT)
+        back_text = hint_font.render("Press B to return to the map", True, TEXT)
+        mode_text = hint_font.render("Press T to return and switch game mode", True, TEXT)
+
+        center_x = WINDOW_W // 2
+        center_y = WINDOW_H // 2
+        self.screen.blit(game_over_text, game_over_text.get_rect(center=(center_x, center_y - 95)))
+        self.screen.blit(score_text, score_text.get_rect(center=(center_x, center_y - 20)))
+        self.screen.blit(lines_text, lines_text.get_rect(center=(center_x, center_y + 20)))
+        self.screen.blit(restart_text, restart_text.get_rect(center=(center_x, center_y + 70)))
+        self.screen.blit(back_text, back_text.get_rect(center=(center_x, center_y + 100)))
+        self.screen.blit(mode_text, mode_text.get_rect(center=(center_x, center_y + 130)))
+
+    def draw_game_background(self):
+        if self.bg_image:
+            self.screen.blit(self.bg_image, (0, 0))
+        else:
+            self.screen.fill(BG)
         self.draw_board()
         self.draw_sidebar()
+
+    def draw(self):
+        self.draw_game_background()
         if self.game_over:
             self.draw_game_over()
         pygame.display.flip()
@@ -405,6 +821,12 @@ class Tetris:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
+                if event.key == pygame.K_b and self.game_over:
+                    self.request_return_to_map()
+                    return
+                if event.key == pygame.K_t and self.game_over:
+                    self.return_to_mode_select()
+                    return
                 if event.key in (pygame.K_UP, pygame.K_x):
                     self.rotate()
                 elif event.key == pygame.K_LEFT:
@@ -432,59 +854,4 @@ class Tetris:
                     self.debug_mode = not self.debug_mode
                 elif event.key == pygame.K_COMMA:
                     self.debug_mode = True
-                    self.debug_offset_ms += self.debug_step_ms
-                    self.drop_ms = self.compute_drop_ms()
-                elif event.key == pygame.K_PERIOD:
-                    self.debug_mode = True
-                    self.debug_offset_ms -= self.debug_step_ms
-                    self.drop_ms = self.compute_drop_ms()
-            if event.type == pygame.KEYUP:
-                # stop hold when releasing left/right
-                if event.key == pygame.K_LEFT and self.hold_dir == -1:
-                    self.hold_dir = None
-                    self.hold_time = 0
-                    self.hold_repeat_acc = 0
-                elif event.key == pygame.K_RIGHT and self.hold_dir == 1:
-                    self.hold_dir = None
-                    self.hold_time = 0
-                    self.hold_repeat_acc = 0
-
-        # remove per-frame instantaneous repeats; horizontal hold handled in update(dt)
-        keys = pygame.key.get_pressed()
-        if not self.game_over:
-            # keep single-keydown moves from KEYDOWN events; holding is handled in update()
-            pass
-
-    def update(self, dt):
-        if self.game_over:
-            return
-        # `dt` from `clock.tick()` is already milliseconds; don't multiply by 1000.
-        self.drop_accumulator += dt
-        if self.drop_accumulator >= self.drop_ms:
-            self.drop_accumulator = 0
-            if not self.soft_drop():
-                self.lock_piece()
-        # handle hold-to-repeat for horizontal movement
-        if self.hold_dir is not None:
-            self.hold_time += dt
-            if self.hold_time >= self.hold_delay_ms:
-                self.hold_repeat_acc += dt
-                while self.hold_repeat_acc >= self.hold_repeat_interval:
-                    # repeat move
-                    self.move(self.hold_dir)
-                    self.hold_repeat_acc -= self.hold_repeat_interval
-
-    def run(self):
-        while True:
-            dt = self.clock.tick(FPS)
-            self.handle_events()
-            self.update(dt)
-            self.draw()
-
-
-def main():
-    Tetris().run()
-
-
-if __name__ == "__main__":
-    main()
+*** End File

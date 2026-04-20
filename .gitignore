@@ -27,3 +27,10 @@ venv/
 dist/
 build/
 project_management_excel.txt
+
+# Ignore large media files in project asset folders only
+# (keep other .mp4/.mp3 files if your classmates added them elsewhere)
+menu&map/*.mp4
+menu&map/intro_video/
+tetris_game/*.mp3
+tetris_game/*.mp4

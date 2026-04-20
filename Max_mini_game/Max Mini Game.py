@@ -18,7 +18,7 @@ import traceback
 import pygame
 
 
-def run(screen: pygame.Surface | None = None) -> None:
+def run(screen: pygame.Surface | None = None) -> bool:
     """Run the mini game.
 
     If `screen` is provided, the mini game draws into that surface and returns
@@ -485,7 +485,7 @@ def run(screen: pygame.Surface | None = None) -> None:
     if not show_menu(clock):
         if created_display:
             pygame.quit()
-        return
+        return False
 
     try:
         while running:
@@ -749,11 +749,11 @@ def run(screen: pygame.Surface | None = None) -> None:
                         if event.type == pygame.KEYDOWN and event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                             # Launch interactive system using current display (no black screen)
                             if _launch_interactive_system(screen):
-                                return
+                                return True
                         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                             # Launch on click while invitation is shown
                             if _launch_interactive_system(screen):
-                                return
+                                return True
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         # Only check the replay/home buttons when invitation isn't shown
                         if invitation_rect is None:
@@ -777,17 +777,17 @@ def run(screen: pygame.Surface | None = None) -> None:
             if replay_requested:
                 continue
             if home_requested:
-                return
+                return won
 
-            return
+            return won
     finally:
         pygame.mouse.set_visible(True)
         if created_display:
             pygame.quit()
 
 
-def main() -> None:
-    run(None)
+def main() -> bool:
+    return run(None)
 
 
 if __name__ == "__main__":

@@ -630,7 +630,7 @@ def main(screen: pygame.Surface | None = None):
                 if created_display:
                     running = False
                 else:
-                    return
+                    return won
             elif event.type == SPAWN_EVENT:
                 # spawn a ball at random y and x beyond right edge
                 if ball_imgs:
@@ -644,7 +644,7 @@ def main(screen: pygame.Surface | None = None):
                     if created_display:
                         running = False
                     else:
-                        return
+                        return won
                 if event.key == pygame.K_UP:
                     move_up = True
                 elif event.key == pygame.K_w:
@@ -689,7 +689,7 @@ def main(screen: pygame.Surface | None = None):
                     elif menu_rect and menu_rect.collidepoint(event.pos):
                         print('MenuLog: Menu clicked.')
                         # Match Max Mini Game home behavior: return to caller menu immediately.
-                        return
+                        return won
                     elif continue_rect and continue_rect.collidepoint(event.pos):
                         print('MenuLog: Continue clicked, play intro video.')
                         play_video_fullscreen(screen, clock, intro_video_path)
@@ -698,7 +698,7 @@ def main(screen: pygame.Surface | None = None):
                         if created_display:
                             running = False
                         else:
-                            return
+                            return won
 
         if show_start_screen:
             if bg_img:
@@ -946,6 +946,7 @@ def main(screen: pygame.Surface | None = None):
 
     if created_display:
         pygame.quit()
+    return won
 
 
 def run(screen: pygame.Surface | None = None):
