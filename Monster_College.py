@@ -35,23 +35,10 @@ _bg = pygame.transform.smoothscale(_bg_raw, (int(_bg_w * scale), int(_bg_h * sca
 LOGO_PATH = os.path.join(ASSET_DIR, "logo.png")
 START_BTN_PATH = os.path.join(ASSET_DIR, "start_button.png")
 
-<<<<<<< HEAD
 VIDEO_PATH = os.path.join(ASSET_DIR, "monstercollegeintro.mp4")
 
 if not os.path.exists(VIDEO_PATH):
     raise FileNotFoundError(f"Missing video file: {VIDEO_PATH}. Put monstercollegeintro.mp4 in the menu&map folder.")
-=======
-INTRO_VIDEO_PARTS = [
-    os.path.join(ASSET_DIR, "intro_video", f"intro{index:02d}.mp4")
-    for index in range(1, 5)
-]
-
-missing_parts = [path for path in INTRO_VIDEO_PARTS if not os.path.exists(path)]
-if missing_parts:
-    raise FileNotFoundError(
-        "Missing intro video part(s): " + ", ".join(missing_parts) + ". Put intro01.mp4 through intro04.mp4 in menu&map/intro_video."
-    )
->>>>>>> 28ff0e560e48fff624146b17385476c2dc0fa8fa
 
 for _p in (LOGO_PATH, START_BTN_PATH):
     if not os.path.exists(_p):
@@ -119,8 +106,8 @@ def main() -> None:
                     running = False
                 elif event.key == pygame.K_RETURN or event.key == pygame.K_KP_ENTER:
                     # Play video when Enter pressed
-                            play_video()
-                            show_map()
+                    play_video()
+                    show_map()
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 # record which button was pressed
                 if start_rect.collidepoint(event.pos):
@@ -185,12 +172,7 @@ def play_clip_in_pygame(clip, show_skip_hint: bool = True) -> bool:
 
     # Prepare optional on-screen instruction (styled like the start screen)
     font = pygame.font.SysFont(None, 48)
-<<<<<<< HEAD
-    video_name = os.path.basename(path).lower()
-    skip_allowed = video_name in {"skytoschool.mp4", "monstercollegeintro.mp4"}
-=======
     skip_allowed = show_skip_hint
->>>>>>> 28ff0e560e48fff624146b17385476c2dc0fa8fa
     instr_s = None
     shadow = None
     instr_rect = None
@@ -301,11 +283,7 @@ def play_clip_in_pygame(clip, show_skip_hint: bool = True) -> bool:
             screen.blit(surf, (0, 0))
 
             # Draw the optional instruction over the video (top of screen)
-<<<<<<< HEAD
-            if instr_s is not None:
-=======
             if instr_s is not None and shadow is not None and instr_rect is not None and shadow_rect is not None:
->>>>>>> 28ff0e560e48fff624146b17385476c2dc0fa8fa
                 screen.blit(shadow, shadow_rect)
                 screen.blit(instr_s, instr_rect)
 
@@ -342,26 +320,8 @@ def play_video_in_pygame(path: str, show_skip_hint: bool = True) -> bool:
 
 
 def play_intro_sequence() -> None:
-    # Concatenate all intro parts so playback is continuous with no gap between files.
-    clips = []
-    intro_clip = None
-    try:
-        for part_path in INTRO_VIDEO_PARTS:
-            clips.append(VideoFileClip(part_path))
-
-        intro_clip = concatenate_videoclips(clips, method="chain")
-        play_clip_in_pygame(intro_clip, show_skip_hint=True)
-    finally:
-        if intro_clip is not None:
-            try:
-                intro_clip.close()
-            except Exception:
-                pass
-        for part_clip in clips:
-            try:
-                part_clip.close()
-            except Exception:
-                pass
+    # Play the single intro video file shipped in menu&map.
+    play_video_in_pygame(VIDEO_PATH, show_skip_hint=True)
 
 
 def play_video() -> None:
@@ -374,7 +334,7 @@ def play_video() -> None:
     except Exception as e:
         print("In-window playback failed:", e)
 
-    print("Unable to open intro video sequence. Check the four files in menu&map/intro_video.")
+    print("Unable to open intro video. Check menu&map/monstercollegeintro.mp4.")
 
 
 def show_map() -> None:
