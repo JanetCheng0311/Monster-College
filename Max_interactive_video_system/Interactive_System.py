@@ -5,6 +5,10 @@ Behavior:
 - When it ends, shows two buttons: A (left) and B (right).
 - Clicking A plays `Round1_A.mp4`.
 - Clicking B plays `Round1_B.mp4`.
+- After `Round1_A.mp4` or `Round1_B.mp4` ends, plays `Max_scenes002.mp4`.
+- When `Max_scenes002.mp4` ends, shows the buttons again.
+- Clicking A plays `Max_s2_A_New.mp4`.
+- Clicking B plays `Max_s2_B.mp4`.
 
 Notes:
 - Video is decoded with MoviePy and displayed with Pygame.
@@ -29,6 +33,10 @@ class InteractiveConfig:
     start_video: str = "Max_scenes001.mp4"
     option_a_video: str = "Round1_A.mp4"
     option_b_video: str = "Round1_B.mp4"
+    after_round1_video: str = "Max_scenes002.mp4"
+
+    option2_a_video: str = "Max_s2_A_New.mp4"
+    option2_b_video: str = "Max_s2_B.mp4"
 
     fps_fallback: int = 30
 
@@ -289,6 +297,10 @@ def run(screen: pygame.Surface | None = None, config: InteractiveConfig | None =
     start_path = config.base_dir / config.start_video
     a_path = config.base_dir / config.option_a_video
     b_path = config.base_dir / config.option_b_video
+    after_round1_path = config.base_dir / config.after_round1_video
+
+    option2_a_path = config.base_dir / config.option2_a_video
+    option2_b_path = config.base_dir / config.option2_b_video
 
     button_a_img = config.base_dir / "Button_A.png"
     button_b_img = config.base_dir / "Button_B.png"
@@ -315,7 +327,26 @@ def run(screen: pygame.Surface | None = None, config: InteractiveConfig | None =
             return 0
 
         next_path = a_path if choice == "A" else b_path
-        _play_video(screen, next_path, fps_fallback=config.fps_fallback)
+        round1_result = _play_video(screen, next_path, fps_fallback=config.fps_fallback)
+        if not round1_result.ended:
+            return 0
+
+        after_round1_result = _play_video(screen, after_round1_path, fps_fallback=config.fps_fallback)
+        if not after_round1_result.ended:
+            return 0
+
+        choice2 = _choose_option(
+            screen,
+            after_round1_result.last_frame,
+            after_round1_result.last_frame_rect,
+            button_a_image_path=button_a_img,
+            button_b_image_path=button_b_img,
+        )
+        if choice2 is None:
+            return 0
+
+        next2_path = option2_a_path if choice2 == "A" else option2_b_path
+        _play_video(screen, next2_path, fps_fallback=config.fps_fallback)
         return 0
     finally:
         # Only quit pygame if we created the display here.
