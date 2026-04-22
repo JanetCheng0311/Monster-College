@@ -3,10 +3,12 @@ import pygame
 import subprocess
 import sys
 import importlib.util
+import importlib
 import numpy as np
 import tempfile
 import time
 from moviepy.video.io.VideoFileClip import VideoFileClip
+from moviepy.editor import concatenate_videoclips
 
 
 # Initialize Pygame
@@ -323,12 +325,15 @@ def play_video_in_pygame(path: str) -> None:
 
 
 def play_video() -> None:
-    """Try in-window playback first, then fallback to system opener if it fails."""
-    video_path = resolve_intro_video_path()
-    if video_path is None:
-        print("Unable to find an intro video. Tried:")
-        for candidate in INTRO_VIDEO_CANDIDATES:
-            print(f" - {candidate}")
+    """Play intro01-04 as one continuous intro sequence.
+
+    TAB skips the entire sequence.
+    """
+    intro_paths = [os.path.join(INTRO_VIDEO_DIR, name) for name in INTRO_VIDEO_NAMES]
+    existing_paths = [p for p in intro_paths if os.path.exists(p)]
+
+    if not existing_paths:
+        print(f"No intro videos found in: {INTRO_VIDEO_DIR}")
         return
 
     try:
