@@ -126,7 +126,7 @@ class Piece:
 class Tetris:
     def __init__(self, screen=None):
         pygame.init()
-        pygame.display.set_caption("Tetris")
+        pygame.display.set_caption(GAME_TITLE)
         # open in fullscreen when launched directly; reuse the provided screen when launched from the map
         if screen is None:
             self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
@@ -953,10 +953,6 @@ def run(screen=None):
 
 def main(screen=None):
     run(screen)
-
-
-def main():
-    Tetris().run()
 
 
 if __name__ == "__main__":
