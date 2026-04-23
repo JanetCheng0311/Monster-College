@@ -550,7 +550,8 @@ class Tetris:
                 )
                 pygame.mixer.music.load(audio_temp_path)
                 pygame.mixer.music.set_volume(1.0)
-                pygame.mixer.music.play()
+                # Ensure the intro audio plays only once (no looping)
+                pygame.mixer.music.play(loops=0)
                 fallback_start_time = time.perf_counter()
 
             frame_index = 0
