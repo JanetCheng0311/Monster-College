@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Monster College — Play Online</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial,sans-serif;background:#0b1220;color:#eef;margin:0}
+    .wrap{max-width:900px;margin:48px auto;padding:24px;background:rgba(255,255,255,0.02);border-radius:12px}
+    h1{margin:0 0 8px;font-size:28px}
+    p.lead{color:#cfe;opacity:0.9}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+    .card{background:rgba(255,255,255,0.03);padding:18px;border-radius:10px}
+    .btn{display:inline-block;padding:10px 14px;background:#2c7; color:#012;border-radius:8px;text-decoration:none;font-weight:600}
+    .muted{color:#9ab}
+    footer{margin-top:18px;color:#9ab;font-size:13px}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Monster College — Web Landing</h1>
+    <p class="lead">Play the browser-ready mini-game or follow instructions to run the desktop versions.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Sir Doggegg (Tetris)</h2>
+        <p class="muted">Playable in your browser — lightweight JS build.</p>
+        <p><a class="btn" href="/docs/index.html">Play Sir Doggegg</a></p>
+        <p class="muted">This is a pure-HTML/JS prototype included in the repo as the quick web fallback.</p>
+      </div>
+
+      <div class="card">
+        <h2>Max Mini Game</h2>
+        <p class="muted">Not ported yet to the web.</p>
+        <p><a class="btn" href="https://github.com/JanetCheng0311/Monster-College/blob/main/Max_mini_game/Max%20Mini%20Game.py" target="_blank">Open on GitHub</a></p>
+        <p class="muted">Download and run locally with Python + Pygame: <code>python "Max Mini Game.py"</code></p>
+      </div>
+
+      <div class="card">
+        <h2>Tiger Game</h2>
+        <p class="muted">Not ported yet to the web.</p>
+        <p><a class="btn" href="https://github.com/JanetCheng0311/Monster-College/blob/main/tiger-game/main.py" target="_blank">Open on GitHub</a></p>
+        <p class="muted">Run locally with Python: <code>python main.py</code> (see repo for dependencies)</p>
+      </div>
+
+      <div class="card">
+        <h2>Full Monster College</h2>
+        <p class="muted">Desktop launcher that runs all mini-games and intro videos.</p>
+        <p><a class="btn" href="https://github.com/JanetCheng0311/Monster-College/blob/main/Monster_College.py" target="_blank">Open Launcher on GitHub</a></p>
+        <p class="muted">To run locally: install Python, Pygame and MoviePy, then <code>python Monster_College.py</code>.</p>
+      </div>
+    </div>
+
+    <section style="margin-top:20px">
+      <h3>Video assets</h3>
+      <p class="muted">Intro videos and other media are included in the repository under <code>menu&map/intro_video</code>. View them on GitHub if you need to download them for local runs.</p>
+    </section>
+
+    <footer>
+      Note: This landing provides a fast web-play option (Sir Doggegg). If you want, I can port Max and Tiger to the web next.
+    </footer>
+  </main>
+</body>
+</html>
