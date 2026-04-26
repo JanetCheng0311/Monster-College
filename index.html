@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Monster College — Web Landing</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;max-width:960px;margin:28px auto;color:#222}
+    header{display:flex;align-items:center;gap:16px}
+    h1{margin:.2rem 0}
+    .video-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{border:1px solid #e5e5e5;padding:12px;border-radius:8px}
+    .btn{display:inline-block;padding:8px 12px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none}
+    pre{background:#f6f8fa;padding:12px;border-radius:6px;overflow:auto}
+    footer{margin-top:28px;color:#666;font-size:.9rem}
+    @media(max-width:640px){.video-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <img src="menu&map/logo.png" alt="logo" style="height:72px;object-fit:contain">
+    <div>
+      <h1>Monster College — Web Landing</h1>
+      <div>Play intro videos and open the mini-game scripts.</div>
+    </div>
+  </header>
+
+  <section style="margin-top:18px">
+    <h2>Intro Videos</h2>
+    <div class="video-grid">
+      <div class="card">
+        <h3>Intro 01</h3>
+        <video controls width="100%" src="menu&map/intro_video/intro01.mp4">Your browser does not support HTML5 video.</video>
+      </div>
+      <div class="card">
+        <h3>Intro 02</h3>
+        <video controls width="100%" src="menu&map/intro_video/intro02.mp4">Your browser does not support HTML5 video.</video>
+      </div>
+      <div class="card">
+        <h3>Intro 03</h3>
+        <video controls width="100%" src="menu&map/intro_video/intro03.mp4">Your browser does not support HTML5 video.</video>
+      </div>
+      <div class="card">
+        <h3>Intro 04</h3>
+        <video controls width="100%" src="menu&map/intro_video/intro04.mp4">Your browser does not support HTML5 video.</video>
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-top:18px">
+    <h2>Mini Games</h2>
+    <div class="card">
+      <p>Click to view or download the mini-game script. These are Python/pygame programs — they won't run in the browser as-is.</p>
+      <ul>
+        <li><a class="btn" href="Max_mini_game/Max%20Mini%20Game.py" target="_blank">Max Mini Game (script)</a></li>
+        <li style="margin-top:8px"><a class="btn" href="tiger-game/main.py" target="_blank">Tiger Game (script)</a></li>
+        <li style="margin-top:8px"><a class="btn" href="sir_doggegg_nap_break/tetris_game.py" target="_blank">Sir Doggegg (Tetris) (script)</a></li>
+      </ul>
+    </div>
+
+    <div style="margin-top:12px" class="card">
+      <h3>Run locally</h3>
+      <p>To run the full game locally with Python and Pygame:</p>
+      <pre>python -m pip install -r requirements.txt
+python Monster_College.py</pre>
+      <p>If videos or images are missing, ensure the <code>menu&map/intro_video</code> and <code>menu&map</code> assets are present.</p>
+    </div>
+  </section>
+
+  <section style="margin-top:18px">
+    <h2>Notes & Publishing</h2>
+    <div class="card">
+      <p>- This static page links to the repository assets by relative paths. To serve the whole repo via GitHub Pages, set the Pages source to <strong>main branch (root)</strong> in the repository Settings.</p>
+      <p>- Alternative: place site files into a <code>docs/</code> folder and publish from there, but ensure you copy required videos into <code>docs/</code>.</p>
+    </div>
+  </section>
+
+  <footer>
+    <div>Created from this repository's files. Want the games to run in-browser? I can help port them using <em>pygbag</em> or <em>Pyodide</em>.</div>
+  </footer>
+</body>
+</html>
