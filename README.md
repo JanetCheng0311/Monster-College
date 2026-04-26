@@ -65,3 +65,15 @@ If you rename assets on the Drive side, update `scripts/fetch_assets.sh` accordi
 
 - Large media files are excluded from Git; use `scripts/fetch_assets.sh` or Git LFS.
 - When launched from the map, mini-games reuse the existing Pygame `screen` object; when launched directly they open fullscreen.
+
+## GitHub Pages deployment
+
+- A playable web prototype (Tetris) is available at `docs/index.html`.
+- The repo includes a GitHub Actions workflow that publishes the `docs/` folder to the `gh-pages` branch on every push to `main`.
+
+To enable Pages serving from the `gh-pages` branch:
+1. Go to your repository Settings → Pages.
+2. Under "Source" choose "Deploy from a branch" and set Branch = `gh-pages`, Folder = `/ (root)`, then Save.
+3. Wait a minute — your Pages site should appear at the repo Pages URL.
+
+If you prefer to serve directly from `main`/`docs`, instead set Source = `main` and Folder = `/docs` in the Pages settings.
